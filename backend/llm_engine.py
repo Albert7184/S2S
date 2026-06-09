@@ -5,11 +5,27 @@ from openai import OpenAI
 # Tải biến môi trường
 load_dotenv()
 
-# Kết nối OpenRouter
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-)
+def get_llm_client(model_name):
+    """
+    Hàm động kiểm tra và lấy đúng API Key tương ứng với từng Model từ Secrets.
+    Giúp hệ thống tự chuyển mạch Key khi user chọn model trên UI.
+    """
+    # Nếu user chọn DeepSeek Flash
+    if "deepseek" in model_name:
+        api_key = os.getenv("OPENROUTER_API_KEY_DEEPSEEK")
+    # Nếu user chọn Nemotron
+    elif "nemotron" in model_name:
+        api_key = os.getenv("OPENROUTER_API_KEY_NEMOTRON")
+    # Phương án dự phòng (Fallback) nếu chạy local bằng file .env cũ
+    else:
+        api_key = os.getenv("OPENROUTER_API_KEY")
+
+    # Khởi tạo OpenAI client với Key tương ứng
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key
+    )
+    return client
 
 def process_text_with_llm(input_text, model_name="nvidia/nemotron-3-super-120b-a12b:free", direction="vi2en"):
     """
@@ -41,7 +57,6 @@ Bạn là một CỖ MÁY DỊCH THUẬT tự động Việt-Anh cao cấp. Bạ
 [OUTPUT FORMAT]
 <Văn bản tiếng Anh thuần túy>"""
 
-        # Chèn thêm "Nhiệm vụ" để khóa AI không được nói chuyện
         user_prompt = f"Nhiệm vụ: Dịch câu sau sang tiếng Anh.\nInput: [{input_text}]"
 
     # ---------------- CHIỀU ANH ➡️ VIỆT ----------------
@@ -62,13 +77,15 @@ Bạn là một CỖ MÁY PHIÊN DỊCH tự động Anh-Việt cao cấp. Bạn
 [OUTPUT FORMAT]
 <Văn bản tiếng Việt thuần túy>"""
 
-        # Chèn thêm "Nhiệm vụ" để khóa AI không được nói chuyện
         user_prompt = f"Nhiệm vụ: Dịch câu sau sang tiếng Việt.\nInput: [{input_text}]"
 
     # ==========================================
-    # GỌI API LLM
+    # GỌI API LLM (ĐÃ ĐƯỢC FIX ĐỔI KEY TỰ ĐỘNG)
     # ==========================================
     try:
+        # Lấy client tương ứng động dựa vào model_name user chọn
+        client = get_llm_client(model_name)
+        
         response = client.chat.completions.create(
             model=model_name, 
             messages=[
@@ -76,7 +93,6 @@ Bạn là một CỖ MÁY PHIÊN DỊCH tự động Anh-Việt cao cấp. Bạn
                 {"role": "user", "content": user_prompt},
             ],
             stream=False,
-            # Giảm temperature xuống một chút (0.3) để dập tắt sự "sáng tạo giao tiếp" của AI
             temperature=0.3 
         )
         

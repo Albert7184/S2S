@@ -1,12 +1,14 @@
 import asyncio
 import edge_tts
-import pygame
 import os
 import time
+import streamlit as st
 
 def play_text_to_speech(text, target_lang="en"):
     """
-    Phát âm thanh ra loa sử dụng Microsoft Edge TTS (Đã sửa lỗi đồng bộ cho Streamlit Cloud).
+    Phát âm thanh sử dụng Microsoft Edge TTS.
+    Đã tối ưu hóa: Thay thế Pygame bằng st.audio để phát trực tiếp trên trình duyệt Web,
+    khắc phục hoàn toàn lỗi mất Card âm thanh (ALSA error) trên Streamlit Cloud.
     Giữ nguyên logic kiểm tra chuỗi và tên hàm cũ của ní.
     """
     # 1. Giữ nguyên logic check text rỗng của ní
@@ -30,24 +32,18 @@ def play_text_to_speech(text, target_lang="en"):
         await communicate.save(output_file)
 
     try:
-        # Chạy luồng tải audio
+        # Chạy luồng tải audio từ server Microsoft về máy chủ tạm thời
         asyncio.run(_generate_audio())
 
-        # Khởi tạo pygame mixer để phát âm thanh ra loa
-        pygame.mixer.init()
-        pygame.mixer.music.load(output_file)
-        pygame.mixer.music.play()
-
-        # Giữ luồng chạy cho đến khi phát xong hết câu
-        while pygame.mixer.music.get_busy():
-            pygame.time.Clock().tick(10)
-
-        # Giải phóng file để hệ điều hành không giữ khóa
-        pygame.mixer.quit()
-        time.sleep(0.1) 
-        
-        # Xóa file tạm thời
+        # 3. Thay thế Pygame bằng st.audio để đẩy file âm thanh về trình duyệt người dùng
         if os.path.exists(output_file):
+            with open(output_file, "rb") as audio_file:
+                audio_bytes = audio_file.read()
+            
+            # Phát âm thanh tự động (autoplay) trực tiếp trên trình duyệt của người dùng
+            st.audio(audio_bytes, format="audio/mp3", autoplay=True)
+            
+            # Xóa file tạm thời để tránh rác máy chủ
             os.remove(output_file)
 
     except Exception as e:
@@ -57,6 +53,7 @@ def play_text_to_speech(text, target_lang="en"):
 # KHU VỰC TEST NHANH (GIỮ NGUYÊN KHUNG CỦA NÍ)
 # ==========================================
 if __name__ == "__main__":
+    # Khi chạy file này độc lập ở máy local, nó vẫn sẽ in log test bình thường
     play_text_to_speech("Hello, this is a speed test for the English voice.", target_lang="en")
     play_text_to_speech("Xin chào, tôi là giọng nói tiếng Việt được tối ưu hóa siêu tốc.", target_lang="vi")
     print("🎉 Hoàn tất quá trình test TTS song ngữ!")

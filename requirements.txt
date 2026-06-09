@@ -15,7 +15,7 @@ python-dotenv
 
 # --- Text-to-Speech (Phát âm thanh Microsoft Edge TTS) ---
 edge-tts
-pygame
+pygame>=2.5.2
 
 # --- Audio I/O (Xử lý luồng âm thanh) ---
 pyaudio

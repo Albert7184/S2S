@@ -8,14 +8,12 @@ import streamlit as st
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_ROOT = os.path.join(BASE_DIR, "models")
 
-# Loại bỏ biến _cached_recognizers = {} cũ để tránh xung đột con trỏ bộ nhớ C++ trên Cloud
-
 @st.cache_resource
 def get_offline_recognizer(lang="vi"):
     """
     Khởi tạo và trả về model recognizer tương ứng với ngôn ngữ.
     Sử dụng hoàn toàn cơ chế cache hệ thống của Streamlit để khóa chặt RAM,
-    giúp xử lý triệt để lỗi 'invalid unordered_map<K, T> key' trên Streamlit Cloud.
+    giúp xử lý triệt để lỗi 'invalid unordered_map<K, T> key' trên Streamlit Cloud và Local.
     """
     print(f"⏳ Đang khởi tạo Offline Recognizer cho tiếng '{lang}'...")
     try:
@@ -36,6 +34,11 @@ def get_offline_recognizer(lang="vi"):
                 "tokens": os.path.join(model_dir, "tokens.txt")
             }
         
+        # 🛡️ Lá chắn 1: Kiểm tra sự tồn tại thực tế của các file cấu hình trước khi nạp vào nhân C++
+        for name, path in paths.items():
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Không tìm thấy file thành phần của model {lang}: {path}")
+        
         # Tạo trực tiếp đối tượng và để Streamlit tự cache dựa trên tham số 'lang'
         recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
             encoder=paths["encoder"],
@@ -49,11 +52,13 @@ def get_offline_recognizer(lang="vi"):
         
     except Exception as e:
         print(f"❌ Lỗi khởi tạo model ({lang}): {e}")
+        # 🛡️ Lá chắn 2: Nếu nạp lỗi, ép hệ thống xóa cache để lượt sau nạp lại sạch sẽ, tránh kẹt RAM
+        st.cache_resource.clear()
         return None
 
 def listen_from_mic(listen_lang="vi"):
     """Nghe từ mic và chuyển đổi sang text bằng Zipformer (Giữ nguyên 100% logic của ní)"""
-    # Lấy đúng model theo ngôn ngữ được truyền vào từ hàm cache hệ thống
+    # Lấy đúng model theo ngôn ngữ được truyền vào từ hàm cache hệ thống đã được bảo vệ
     recognizer = get_offline_recognizer(listen_lang)
     if not recognizer: 
         return "ERROR"
@@ -72,7 +77,7 @@ def listen_from_mic(listen_lang="vi"):
             audio = vad.listen(source, timeout=10, phrase_time_limit=25)
             print("⏳ [STT] Đang giải mã...")
             
-            # Xử lý âm thanh (Giữ nguyên thuật toán của ní)
+            # Xử lý âm thanh (Giữ nguyên thuật toán xử lý mảng dữ liệu thô của ní)
             raw = audio.get_raw_data(convert_rate=16000, convert_width=2)
             waveform = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
             
@@ -87,4 +92,7 @@ def listen_from_mic(listen_lang="vi"):
             
         except Exception as e:
             print(f"❌ Lỗi STT: {e}")
+            # Nếu lõi C++ quăng lỗi map key hoặc lỗi cấu trúc dữ liệu, xóa cache giải phóng RAM ngay lập tức
+            if "unordered_map" in str(e) or "KeyError" in str(e):
+                st.cache_resource.clear()
             return "ERROR"

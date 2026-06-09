@@ -1,0 +1,22 @@
+﻿# --- Frontend (Giao diện Web) ---
+streamlit
+
+# --- Speech-to-Text (Nhận diện giọng nói Mic Offline) ---
+sherpa-onnx
+numpy
+SpeechRecognition
+
+# --- Speech-to-Text (Trích xuất File Audio MP3/WAV) ---
+openai-whisper
+
+# --- LLM API (Xử lý ngôn ngữ qua OpenRouter) ---
+openai
+python-dotenv
+
+# --- Text-to-Speech (Phát âm thanh Microsoft Edge TTS) ---
+edge-tts
+pygame
+
+# --- Audio I/O (Xử lý luồng âm thanh) ---
+pyaudio
+soundfile

@@ -1,0 +1,49 @@
+# ==========================================
+# THƯ MỤC MÔI TRƯỜNG & THƯ VIỆN BÊN THỨ 3
+# ==========================================
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+
+# ==========================================
+# THƯ MỤC MODEL TRÍ TUỆ NHÂN TẠO (QUÁ NẶNG)
+# Đã xử lý tự động tải qua Hugging Face
+# ==========================================
+models/
+
+# ==========================================
+# FILE BẢO MẬT & API KEY (TUYỆT ĐỐI CHẶN)
+# ==========================================
+.env
+.env.local
+.secrets.toml
+*.pem
+
+# ==========================================
+# RÁC HỆ THỐNG & CACHE CỦA PYTHON
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# ==========================================
+# CẤU HÌNH CỦA IDE & TOOLS (VS CODE)
+# ==========================================
+.vscode/
+.idea/
+.DS_Store
+
+# ==========================================
+# CÁC FILE RÁC SINH RA TRONG QUÁ TRÌNH CHẠY APP
+# (Audio tạm thời, file tải xuống test)
+# ==========================================
+temp_*.wav
+temp_*.mp3
+*.log
+Transcription_S2S.txt
+
+# File tạm sinh ra do các modules AI
+.streamlit/

@@ -1,77 +1,60 @@
+import asyncio
+import edge_tts
+import pygame
 import os
-import pyaudio
-from piper.voice import PiperVoice
-
-# --- Cấu hình đường dẫn ---
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_FOLDER = os.path.join(BASE_DIR, "models", "tts_piper")
-
-# --- Bộ nhớ đệm (Cache) ---
-_cached_voices = {}
-_pyaudio_instance = None 
-
-def get_pyaudio():
-    """Khởi tạo PyAudio 1 lần duy nhất để tối ưu tốc độ 0.3s khởi động."""
-    global _pyaudio_instance
-    if _pyaudio_instance is None:
-        _pyaudio_instance = pyaudio.PyAudio()
-    return _pyaudio_instance
-
-def get_voice(lang="en"):
-    """Tải và lưu trữ model Piper theo ngôn ngữ."""
-    global _cached_voices
-    if lang not in _cached_voices:
-        # Tự động trỏ đúng model bản xứ chất lượng cao
-        model_name = "vi_VN-vais1000-medium.onnx" if lang == "vi" else "en_US-amy-medium.onnx"
-        model_path = os.path.join(MODEL_FOLDER, model_name)
-        
-        print(f"⏳ Đang tải model TTS Piper ('{lang}')...")
-        if not os.path.exists(model_path):
-            print(f"❌ KHÔNG TÌM THẤY FILE: {model_path}")
-            return None
-        
-        try:
-            # Gộp thẳng config_path vào lúc load cho gọn code
-            _cached_voices[lang] = PiperVoice.load(model_path, config_path=f"{model_path}.json")
-            print(f"✅ Đã sẵn sàng giọng đọc: '{lang}'!")
-        except Exception as e:
-            print(f"❌ Lỗi tải PiperVoice ({lang}): {e}")
-            return None
-            
-    return _cached_voices[lang]
+import time
 
 def play_text_to_speech(text, target_lang="en"):
-    """Phát âm thanh ra loa."""
+    """
+    Phát âm thanh ra loa sử dụng Microsoft Edge TTS (Đã sửa lỗi đồng bộ cho Streamlit Cloud).
+    Giữ nguyên logic kiểm tra chuỗi và tên hàm cũ của ní.
+    """
+    # 1. Giữ nguyên logic check text rỗng của ní
     if not text or not text.strip():
         return
         
-    voice = get_voice(target_lang)
-    if not voice:
-        return
+    # 2. Giữ nguyên logic tự động trỏ đúng giọng bản xứ theo ngôn ngữ (vi/en)
+    if target_lang == "vi":
+        voice = "vi-VN-NamMinhNeural"
+    else:
+        voice = "en-US-ChristopherNeural"
 
+    # In log ra terminal giống như phong cách file cũ của ní
     print(f"🔊 [{target_lang.upper()}] Đang phát: '{text}'")
     
-    p = get_pyaudio()
-    stream = p.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=voice.config.sample_rate,
-        output=True,
-        frames_per_buffer=1024
-    )
+    output_file = "temp_tts_output.mp3"
+
+    # Hàm bất đồng bộ kết nối server Microsoft để lấy audio
+    async def _generate_audio():
+        communicate = edge_tts.Communicate(text, voice)
+        await communicate.save(output_file)
 
     try:
-        # Dùng lại đúng hàm synthesize() hợp với phiên bản Piper của ní
-        for audio_chunk in voice.synthesize(text):
-            stream.write(audio_chunk.audio_int16_bytes)
+        # Chạy luồng tải audio
+        asyncio.run(_generate_audio())
+
+        # Khởi tạo pygame mixer để phát âm thanh ra loa
+        pygame.mixer.init()
+        pygame.mixer.music.load(output_file)
+        pygame.mixer.music.play()
+
+        # Giữ luồng chạy cho đến khi phát xong hết câu
+        while pygame.mixer.music.get_busy():
+            pygame.time.Clock().tick(10)
+
+        # Giải phóng file để hệ điều hành không giữ khóa
+        pygame.mixer.quit()
+        time.sleep(0.1) 
+        
+        # Xóa file tạm thời
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
     except Exception as e:
         print(f"❌ Lỗi phát TTS: {e}")
-    finally:
-        stream.stop_stream()
-        stream.close()
 
 # ==========================================
-# KHU VỰC TEST NHANH 
+# KHU VỰC TEST NHANH (GIỮ NGUYÊN KHUNG CỦA NÍ)
 # ==========================================
 if __name__ == "__main__":
     play_text_to_speech("Hello, this is a speed test for the English voice.", target_lang="en")

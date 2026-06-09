@@ -12,6 +12,7 @@ if backend_dir not in sys.path:
     sys.path.append(backend_dir)
 
 # ================= TỰ ĐỘNG TẢI MODEL NẾU CHƯA CÓ =================
+@st.cache_resource
 def download_model_if_missing():
     # Khai báo thư mục đích chứa model (bạn đang dùng model tiếng Việt)
     model_dir = os.path.join(current_dir, "../models/sherpa-onnx-zipformer-vi-int8-2025-04-20")

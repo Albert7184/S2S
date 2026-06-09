@@ -2,12 +2,30 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
+# Tải biến môi trường
 load_dotenv()
 
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-)
+def get_coach_client(model_name):
+    """
+    Hàm động kiểm tra và lấy đúng API Key tương ứng với từng Model từ Secrets cho Coach Mode.
+    Giúp hệ thống tự chuyển mạch Key khi user chọn model trên UI mà không làm sập app.
+    """
+    # Nếu chọn DeepSeek Flash
+    if "deepseek" in model_name:
+        api_key = os.getenv("OPENROUTER_API_KEY_DEEPSEEK")
+    # Nếu chọn Nemotron
+    elif "nemotron" in model_name:
+        api_key = os.getenv("OPENROUTER_API_KEY_NEMOTRON")
+    # Phương án dự phòng (Fallback) nếu chạy local bằng file .env cũ
+    else:
+        api_key = os.getenv("OPENROUTER_API_KEY")
+
+    # Khởi tạo OpenAI client với Key tương ứng
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key
+    )
+    return client
 
 def process_with_coach(input_text, model_name="nvidia/nemotron-3-super-120b-a12b:free", direction="vi2en"):
     """
@@ -64,6 +82,9 @@ Bạn là một Thầy giáo dạy tiếng Anh chuẩn bản xứ. Nhiệm vụ 
         user_prompt = f"Học viên nói tiếng Anh: [{input_text}]"
 
     try:
+        # Gọi hàm lấy client động dựa vào model_name thay vì biến toàn cục cũ
+        client = get_coach_client(model_name)
+        
         response = client.chat.completions.create(
             model=model_name, 
             messages=[
